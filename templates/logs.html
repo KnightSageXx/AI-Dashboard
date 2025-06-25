@@ -1,0 +1,114 @@
+{% extends "base.html" %}
+
+{% block title %}Logs - AI Control Dashboard{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-list-alt me-2"></i> System Logs
+                </h5>
+                <div>
+                    <button id="btn-refresh-logs" class="btn btn-sm btn-light me-2">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                    <a href="/" class="btn btn-sm btn-light">
+                        <i class="fas fa-arrow-left"></i> Back to Dashboard
+                    </a>
+                </div>
+            </div>
+            <div class="card-body">
+                <div class="log-filters mb-3">
+                    <div class="row">
+                        <div class="col-md-4 mb-2">
+                            <div class="input-group">
+                                <span class="input-group-text">Filter</span>
+                                <input type="text" id="log-filter" class="form-control" placeholder="Type to filter logs...">
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <div class="input-group">
+                                <span class="input-group-text">Level</span>
+                                <select id="log-level-filter" class="form-select">
+                                    <option value="all">All Levels</option>
+                                    <option value="INFO">Info</option>
+                                    <option value="WARNING">Warning</option>
+                                    <option value="ERROR">Error</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-4 mb-2">
+                            <div class="input-group">
+                                <span class="input-group-text">Component</span>
+                                <select id="log-component-filter" class="form-select">
+                                    <option value="all">All Components</option>
+                                    <option value="ai_dashboard">Dashboard</option>
+                                    <option value="key_rotator">Key Rotator</option>
+                                    <option value="provider_switcher">Provider Switcher</option>
+                                    <option value="temp_email">Temp Email</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="log-container full-logs" id="full-logs">
+                    {% if logs %}
+                        {% for log in logs %}
+                            <div class="log-entry {% if 'ERROR' in log %}log-error{% elif 'WARNING' in log %}log-warning{% else %}log-info{% endif %}">
+                                {{ log }}
+                            </div>
+                        {% endfor %}
+                    {% else %}
+                        <div class="text-center p-5">
+                            <i class="fas fa-info-circle fa-2x mb-3 text-muted"></i>
+                            <p>No logs available.</p>
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    $(document).ready(function() {
+        // Scroll to bottom of logs on load
+        const logsContainer = document.getElementById('full-logs');
+        logsContainer.scrollTop = logsContainer.scrollHeight;
+        
+        // Filter logs when typing
+        $('#log-filter').on('input', filterLogs);
+        $('#log-level-filter').on('change', filterLogs);
+        $('#log-component-filter').on('change', filterLogs);
+        
+        // Refresh logs button
+        $('#btn-refresh-logs').on('click', function() {
+            location.reload();
+        });
+        
+        function filterLogs() {
+            const filterText = $('#log-filter').val().toLowerCase();
+            const levelFilter = $('#log-level-filter').val();
+            const componentFilter = $('#log-component-filter').val();
+            
+            $('.log-entry').each(function() {
+                const logText = $(this).text().toLowerCase();
+                const hasFilterText = filterText === '' || logText.includes(filterText);
+                const hasLevel = levelFilter === 'all' || $(this).text().includes(levelFilter);
+                const hasComponent = componentFilter === 'all' || $(this).text().includes(componentFilter);
+                
+                if (hasFilterText && hasLevel && hasComponent) {
+                    $(this).show();
+                } else {
+                    $(this).hide();
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

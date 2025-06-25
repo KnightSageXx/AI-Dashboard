@@ -1,0 +1,24 @@
+# Ignore Python virtual environments
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Ignore environment and config
+.env
+.env.*
+config.json
+
+# Ignore system or IDE junk
+.DS_Store
+*.log
+logs/
+node_modules/
+.idea/
+.vscode/
+*.sqlite3
+*.db
+*.egg-info/
+build/
+dist/

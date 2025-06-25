@@ -1,0 +1,202 @@
+# AI Control Dashboard - Usage Guide
+
+This guide provides detailed instructions on how to set up, configure, and use the AI Control Dashboard application.
+
+## Overview
+
+The AI Control Dashboard is a web-based application that helps you manage and automate switching between different AI providers:
+- OpenRouter (Claude models)
+- Ollama (local models)
+- Phind (web-based)
+
+Key features include:
+- Auto-rotation of OpenRouter API keys
+- Automatic fallback to alternative providers when keys fail
+- Monitoring of usage and errors through logs
+- Temporary email automation for creating new OpenRouter accounts
+
+## Required Accounts
+
+1. **OpenRouter Account**
+   - Sign up at https://openrouter.ai/signup
+   - After verification, get your API key from https://openrouter.ai/keys
+   - You can add multiple API keys to enable auto-rotation
+
+2. **Continue.dev Configuration**
+   - The dashboard manages your Continue.dev configuration
+   - The default path is set to C:\Users\ZEBRONICS/.continue/config.json
+   - Update this path in config.json if your Continue.dev config is located elsewhere
+
+3. **Ollama (Optional)**
+   - If you want to use Ollama as a fallback provider, install it from https://ollama.ai
+   - The dashboard will attempt to start Ollama automatically when needed
+
+4. **Phind (Optional)**
+   - No installation needed - the dashboard will open Phind in your default browser when needed
+
+## Setup Instructions
+
+### Prerequisites
+
+1. Python 3.8 or higher installed on your system
+2. Chrome browser (for temporary email automation)
+3. Internet connection
+
+### Installation
+
+1. **Using the start.bat file (Windows)**
+   - Simply double-click the start.bat file
+   - It will automatically:
+     - Create a virtual environment if it doesn't exist
+     - Install required dependencies
+     - Create the logs directory
+     - Start the application
+
+2. **Manual Setup**
+   - Create a virtual environment (optional but recommended):
+     ```
+     python -m venv venv
+     ```
+   - Activate the virtual environment:
+     - Windows: `venv\Scripts\activate`
+     - Linux/Mac: `source venv/bin/activate`
+   - Install dependencies:
+     ```
+     pip install -r requirements.txt
+     ```
+   - Create logs directory:
+     ```
+     mkdir logs
+     ```
+   - Start the application:
+     ```
+     python start.py
+     ```
+
+## Configuration
+
+### config.json
+
+Before using the dashboard, you need to configure your settings in `config.json`:
+
+1. **Continue.dev Configuration Path**
+   - Update `continue_config_path` to point to your Continue.dev configuration file
+
+2. **OpenRouter API Keys**
+   - Replace the example API keys with your actual OpenRouter API keys
+   - Example format:
+     ```json
+     {
+       "key": "sk-or-your-actual-key",
+       "is_active": true,
+       "last_used": null,
+       "error_count": 0
+     }
+     ```
+
+3. **Models Configuration**
+   - The default configuration includes popular models for each provider
+   - You can add or remove models as needed
+
+4. **Auto-Rotation Settings**
+   - `auto_rotate`: Set to true/false to enable/disable automatic key rotation
+   - `check_interval_seconds`: How often to check key status (default: 300 seconds)
+   - `max_error_count`: Number of errors before rotating to next key (default: 3)
+
+5. **Temporary Email Settings**
+   - `headless`: Set to true to run browser automation in headless mode (no visible browser)
+   - `user_email`: Set to your personal email address (e.g., "knightsagexf@gmail.com") to use it for OpenRouter signup instead of generating temporary emails
+
+## Using the Dashboard
+
+### Starting the Application
+
+1. Run the application using one of these methods:
+   - Double-click `start.bat` (Windows)
+   - Run `python start.py` in your terminal
+
+2. Access the dashboard in your web browser:
+   - URL: http://localhost:5000
+
+### Dashboard Features
+
+1. **Current Status**
+   - Shows the active provider, model, and API key status
+   - Displays the number of active keys and error counts
+
+2. **Provider Controls**
+   - Switch between OpenRouter, Ollama, and Phind
+   - Update the current model for each provider
+
+3. **API Key Management**
+   - View all OpenRouter API keys
+   - Add new API keys
+   - Test keys to verify they work
+   - Manually rotate to the next key
+
+4. **Temporary Email**
+   - If `user_email` is configured: Uses your personal email for OpenRouter signup
+     - You'll need to manually check your email and verify the account
+     - The system will wait for you to complete verification before continuing
+   - If `user_email` is not configured: Creates a temporary email and automatically signs up
+   - In both cases, the new API key will be automatically added to your configuration
+
+5. **Logs**
+   - View system logs at http://localhost:5000/logs
+   - Filter logs by level (Info, Warning, Error) and component
+
+### Background Daemon
+
+The application includes a background daemon that:
+- Periodically checks the status of your OpenRouter API keys
+- Automatically rotates keys when errors are detected
+- Falls back to Ollama or Phind if all keys fail
+
+## Troubleshooting
+
+1. **Flask Application Errors**
+   - Check the terminal output for error messages
+   - Review logs in the `logs` directory
+
+2. **API Key Issues**
+   - Verify your OpenRouter API keys are valid
+   - Test keys manually using the dashboard
+
+3. **Temporary Email Automation Failures**
+   - Ensure Chrome is installed on your system
+   - Try disabling headless mode in config.json
+   - Check if temp-mail.org has changed its interface
+
+4. **Ollama Connection Issues**
+   - Verify Ollama is installed correctly
+   - Check if Ollama is running on the default port (11434)
+
+## Advanced Usage
+
+### Command Line Arguments
+
+The `start.py` script accepts several command line arguments:
+
+- `--no-daemon`: Start only the web dashboard without the background daemon
+- `--no-web`: Start only the background daemon without the web dashboard
+- `--separate-processes`: Run components in separate processes instead of threads
+
+Example:
+```
+python start.py --no-daemon
+```
+
+### Custom Configuration
+
+You can modify the application behavior by editing these files:
+
+- `config.json`: Main configuration file
+- `app.py`: Flask web application
+- `daemon.py`: Background monitoring process
+- `utils/*.py`: Utility modules for specific functionality
+
+## Security Notes
+
+- The dashboard is designed for local use only and doesn't implement authentication
+- API keys are stored in plain text in config.json
+- Consider running the application only on trusted networks
