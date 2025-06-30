@@ -7,7 +7,8 @@ class DaemonMonitor:
     """Service for monitoring and auto-rotating API keys in the background
     
     This class provides a daemon thread that periodically checks the status of
-    the current API key and rotates it if necessary.
+    the current API key and rotates it if necessary. It uses threading.Event for
+    clean thread termination and RLock for thread-safety.
     """
     
     def __init__(self, config_manager, key_rotator, provider_switcher):
@@ -22,9 +23,16 @@ class DaemonMonitor:
         self.config_manager = config_manager
         self.key_rotator = key_rotator
         self.provider_switcher = provider_switcher
+        
+        # Thread management
         self.daemon_thread = None
-        self.running = False
+        self.stop_event = threading.Event()
+        self.lock = threading.RLock()
+        
+        # Status tracking
+        self.status = 'stopped'
         self.last_check_time = 0
+        self.last_run_time = None
     
     def start(self):
         """Start the daemon thread
@@ -32,15 +40,17 @@ class DaemonMonitor:
         Returns:
             bool: True if the daemon was started, False if it was already running
         """
-        if self.running:
-            self.logger.info("Daemon is already running")
-            return False
-        
-        self.running = True
-        self.daemon_thread = threading.Thread(target=self._daemon_loop, daemon=True)
-        self.daemon_thread.start()
-        self.logger.info("Started daemon thread")
-        return True
+        with self.lock:
+            if self.daemon_thread and self.daemon_thread.is_alive():
+                self.logger.info("Daemon is already running")
+                return False
+            
+            self.stop_event.clear()
+            self.daemon_thread = threading.Thread(target=self._daemon_loop, daemon=True)
+            self.daemon_thread.start()
+            self.status = 'running'
+            self.logger.info("Started daemon thread")
+            return True
     
     def stop(self):
         """Stop the daemon thread
@@ -48,15 +58,27 @@ class DaemonMonitor:
         Returns:
             bool: True if the daemon was stopped, False if it was not running
         """
-        if not self.running:
-            self.logger.info("Daemon is not running")
-            return False
-        
-        self.running = False
-        if self.daemon_thread and self.daemon_thread.is_alive():
+        with self.lock:
+            if not self.daemon_thread or not self.daemon_thread.is_alive():
+                self.logger.info("Daemon is not running")
+                self.status = 'stopped'
+                return False
+            
+            self.logger.info("Stopping daemon thread...")
+            self.stop_event.set()
+            
+            # Wait for the thread to terminate
             self.daemon_thread.join(timeout=5)
-        self.logger.info("Stopped daemon thread")
-        return True
+            
+            # Check if the thread is still alive
+            if self.daemon_thread.is_alive():
+                self.logger.warning("Daemon thread did not terminate within timeout")
+                self.status = 'hung'
+            else:
+                self.logger.info("Daemon thread stopped successfully")
+                self.status = 'stopped'
+            
+            return True
     
     def restart(self):
         """Restart the daemon thread
@@ -73,7 +95,22 @@ class DaemonMonitor:
         Returns:
             bool: True if the daemon is running
         """
-        return self.running and self.daemon_thread and self.daemon_thread.is_alive()
+        with self.lock:
+            return self.daemon_thread is not None and self.daemon_thread.is_alive()
+    
+    def get_status(self):
+        """Get the current status of the daemon
+        
+        Returns:
+            dict: The current status
+        """
+        with self.lock:
+            return {
+                'status': self.status,
+                'running': self.is_running(),
+                'last_run': self.last_run_time,
+                'last_check': self.last_check_time
+            }
     
     def _daemon_loop(self):
         """The main daemon loop
@@ -83,21 +120,29 @@ class DaemonMonitor:
         """
         self.logger.info("Daemon loop started")
         
-        while self.running:
+        while not self.stop_event.is_set():
             try:
+                # Update last run time
+                with self.lock:
+                    self.last_run_time = time.time()
+                
                 # Get the current configuration
                 config = self.config_manager.get_config()
                 
                 # Check if auto-rotate is enabled
                 if not config.get('auto_rotate', False):
                     self.logger.debug("Auto-rotate is disabled, skipping check")
-                    time.sleep(60)  # Sleep for 1 minute before checking again
+                    # Wait for stop event or timeout
+                    if self.stop_event.wait(timeout=60):  # 1 minute
+                        break
                     continue
                 
                 # Check if the current provider is OpenRouter
                 if config.get('current_provider') != 'openrouter':
                     self.logger.debug(f"Current provider is not OpenRouter, skipping check")
-                    time.sleep(60)  # Sleep for 1 minute before checking again
+                    # Wait for stop event or timeout
+                    if self.stop_event.wait(timeout=60):  # 1 minute
+                        break
                     continue
                 
                 # Get the check interval
@@ -106,12 +151,14 @@ class DaemonMonitor:
                 # Check if it's time to check the key
                 current_time = time.time()
                 if current_time - self.last_check_time < check_interval:
-                    # Not time to check yet, sleep for a bit
-                    time.sleep(10)  # Sleep for 10 seconds before checking again
+                    # Not time to check yet, wait for a bit
+                    if self.stop_event.wait(timeout=10):  # 10 seconds
+                        break
                     continue
                 
                 # Update the last check time
-                self.last_check_time = current_time
+                with self.lock:
+                    self.last_check_time = current_time
                 
                 # Get the current key status
                 current_key = self.key_rotator.get_current_key()
@@ -138,9 +185,12 @@ class DaemonMonitor:
             except Exception as e:
                 self.logger.error(f"Error in daemon loop: {str(e)}")
             
-            # Sleep for a bit before checking again
-            time.sleep(10)
+            # Wait for stop event or timeout
+            if self.stop_event.wait(timeout=10):  # 10 seconds
+                break
         
+        with self.lock:
+            self.status = 'stopped'
         self.logger.info("Daemon loop stopped")
     
     def _handle_key_rotation(self):

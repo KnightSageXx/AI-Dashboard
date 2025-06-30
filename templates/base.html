@@ -24,19 +24,19 @@
                 <i class="fas fa-robot me-2"></i>
                 AI Control Dashboard
             </a>
-            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/">
-                            <i class="fas fa-tachometer-alt me-1"></i> Dashboard
+                        <a class="nav-link {% if request.path == '/' %}active{% endif %}" href="/" aria-current="{% if request.path == '/' %}page{% endif %}">
+                            <i class="fas fa-tachometer-alt me-1" aria-hidden="true"></i> Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link {% if request.path == '/logs' %}active{% endif %}" href="/logs">
-                            <i class="fas fa-list-alt me-1"></i> Logs
+                        <a class="nav-link {% if request.path == '/logs' %}active{% endif %}" href="/logs" aria-current="{% if request.path == '/logs' %}page{% endif %}">
+                            <i class="fas fa-list-alt me-1" aria-hidden="true"></i> Logs
                         </a>
                     </li>
                 </ul>
@@ -46,6 +46,9 @@
 
     <!-- Main Content -->
     <div class="container mt-4">
+        <!-- Status update region for screen readers -->
+        <div aria-live="polite" class="sr-only" id="status-update-region"></div>
+        
         {% block content %}{% endblock %}
     </div>
 
@@ -56,11 +59,35 @@
         </div>
     </footer>
 
+    <!-- Modal Template -->
+    <template id="modal-template">
+        <div class="modal fade" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title"></h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body"></div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </template>
+
     <!-- Bootstrap JS Bundle with Popper -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     
     <!-- jQuery -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    
+    <!-- Utility JS -->
+    <script src="{{ url_for('static', filename='js/utils.js') }}"></script>
+    
+    <!-- Modal Manager -->
+    <script src="{{ url_for('static', filename='js/modal-manager.js') }}"></script>
     
     <!-- Custom JS -->
     <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>

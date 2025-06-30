@@ -59,11 +59,11 @@ class AppFactory:
             app (Flask): The Flask application
         """
         from routes.dashboard import register_dashboard_routes
-        from routes.api import register_api_routes
+        from routes.api_main import register_api_routes
         
         # Register route blueprints
         register_dashboard_routes(app, self.config_manager)
-        register_api_routes(app, self.key_rotator, self.provider_switcher, self.config_manager)
+        register_api_routes(app, self.key_rotator, self.provider_switcher, self.config_manager, self.daemon)
         
         # Add template context processor for common variables
         @app.context_processor

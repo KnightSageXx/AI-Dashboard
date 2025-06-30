@@ -52,6 +52,10 @@ A web-based dashboard to manage and automate switching between different AI prov
 
 4. Access the dashboard at http://localhost:5000
 
+## Troubleshooting
+
+If you encounter any issues with the dashboard, please refer to the [Troubleshooting Guide](TROUBLESHOOTING.md) for solutions to common problems.
+
 ## Technologies Used
 
 - **Frontend**: HTML, JavaScript, Bootstrap

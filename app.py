@@ -24,11 +24,13 @@ def handle_api_error(error):
         error (APIError): The APIError exception
         
     Returns:
-        Response: JSON response with error details
+        Response: JSON response with error details in unified format
     """
     response = jsonify({
+        'success': False,
+        'message': None,
         'error': error.message,
-        'status_code': error.status_code
+        'data': None
     })
     response.status_code = error.status_code
     return response

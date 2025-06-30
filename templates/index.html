@@ -3,171 +3,290 @@
 {% block title %}AI Control Dashboard{% endblock %}
 
 {% block content %}
-<div class="row">
-    <!-- Status Card -->
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header bg-primary text-white">
-                <h5 class="mb-0">
-                    <i class="fas fa-info-circle me-2"></i> Current Status
-                </h5>
-            </div>
-            <div class="card-body" id="status-card">
-                <div class="d-flex justify-content-center align-items-center h-100">
-                    <div class="spinner-border text-primary" role="status">
-                        <span class="visually-hidden">Loading...</span>
-                    </div>
+<div class="container-fluid">
+    <div class="row">
+        <!-- Status Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 shadow">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2" aria-hidden="true"></i> Current Status
+                    </h5>
                 </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Actions Card -->
-    <div class="col-md-6 mb-4">
-        <div class="card h-100">
-            <div class="card-header bg-success text-white">
-                <h5 class="mb-0">
-                    <i class="fas fa-cogs me-2"></i> Actions
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="d-grid gap-3">
-                    <!-- OpenRouter Actions -->
-                    <div class="card bg-light">
-                        <div class="card-header">
-                            <h6 class="mb-0">OpenRouter</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-grid gap-2">
-                                <button id="btn-rotate-key" class="btn btn-outline-primary">
-                                    <i class="fas fa-sync-alt me-2"></i> Rotate API Key
-                                </button>
-                                <button id="btn-test-key" class="btn btn-outline-info">
-                                    <i class="fas fa-vial me-2"></i> Test Current Key
-                                </button>
-                                <button id="btn-switch-openrouter" class="btn btn-outline-dark">
-                                    <i class="fas fa-exchange-alt me-2"></i> Switch to OpenRouter
-                                </button>
-                            </div>
+                <div class="card-body" id="status-container">
+                    {% if config and config.current_provider %}
+                    <div class="provider-status provider-{{ config.current_provider }}">
+                        <h5>
+                            <span class="status-indicator status-active" aria-hidden="true"></span>
+                            Current Provider: <strong>{{ config.current_provider|upper }}</strong>
+                        </h5>
+                        <p class="mb-1">Model: <span class="badge bg-info">{{ config.current_model }}</span></p>
+                        {% if config.current_provider == 'openrouter' %}
+                            {% set active_key = None %}
+                            {% set active_key_masked = None %}
+                            {% set last_used = 'Never' %}
+                            {% set error_count = 0 %}
+                            {% set active_keys = 0 %}
+                            {% set total_keys = 0 %}
+                            
+                            {% if config.providers.openrouter.api_keys %}
+                                {% set total_keys = config.providers.openrouter.api_keys|length %}
+                                {% for key in config.providers.openrouter.api_keys %}
+                                    {% if key.is_active %}
+                                        {% set active_key = key %}
+                                        {% set active_keys = active_keys + 1 %}
+                                        {% if key.key %}
+                                            {% set key_str = key.key %}
+                                            {% if key_str|length > 8 %}
+                                                {% set active_key_masked = key_str[:4] + '...' + key_str[-4:] %}
+                                            {% else %}
+                                                {% set active_key_masked = '****' %}
+                                            {% endif %}
+                                        {% endif %}
+                                        {% set last_used = key.last_used|default('Never') %}
+                                        {% set error_count = key.error_count|default(0) %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                            
+                            <p class="mb-1">Active Key: <code class="api-key-masked">{{ active_key_masked }}</code></p>
+                            <p class="mb-1">Last Used: {{ last_used }}</p>
+                            <p class="mb-1">Error Count: <span class="badge {% if error_count > 0 %}bg-danger{% else %}bg-success{% endif %}"><i class="fas {% if error_count > 0 %}fa-exclamation-triangle{% else %}fa-check{% endif %}" aria-hidden="true"></i> {{ error_count }}</span></p>
+                            <p class="mb-0">Keys: <span class="badge bg-primary">{{ active_keys }}/{{ total_keys }}</span> active</p>
+                        {% elif config.current_provider == 'ollama' %}
+                            <p class="mb-0">Running locally on your machine</p>
+                        {% elif config.current_provider == 'phind' %}
+                            <p class="mb-0">Running in browser</p>
+                        {% endif %}
+                    </div>
+                    <div class="d-flex justify-content-between align-items-center mt-3">
+                        <small class="text-muted">Last checked: {{ config.last_check|default(now, true) }}</small>
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="auto-rotate-switch" {% if config.auto_rotate %}checked{% endif %} aria-labelledby="auto-rotate-label">
+                            <label class="form-check-label" for="auto-rotate-switch" id="auto-rotate-label">Auto-rotate</label>
                         </div>
                     </div>
-                    
-                    <!-- Fallback Actions -->
-                    <div class="card bg-light">
-                        <div class="card-header">
-                            <h6 class="mb-0">Fallback Options</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-grid gap-2">
-                                <button id="btn-switch-ollama" class="btn btn-outline-warning">
-                                    <i class="fas fa-server me-2"></i> Switch to Ollama
-                                </button>
-                                <button id="btn-switch-phind" class="btn btn-outline-danger">
-                                    <i class="fas fa-globe me-2"></i> Launch Phind
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <!-- Advanced Actions -->
-                    <div class="card bg-light">
-                        <div class="card-header">
-                            <h6 class="mb-0">Advanced</h6>
-                        </div>
-                        <div class="card-body">
-                            <div class="d-grid gap-2">
-                                <button id="btn-temp-email" class="btn btn-outline-secondary">
-                                    <i class="fas fa-envelope me-2"></i> Create New Account
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- API Key Management -->
-<div class="row mt-2">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header bg-dark text-white">
-                <h5 class="mb-0">
-                    <i class="fas fa-key me-2"></i> API Key Management
-                </h5>
-            </div>
-            <div class="card-body">
-                <div class="row mb-3">
-                    <div class="col-md-8">
-                        <div class="input-group">
-                            <input type="text" id="new-api-key" class="form-control" placeholder="Enter new OpenRouter API key">
-                            <button id="btn-add-key" class="btn btn-primary">
-                                <i class="fas fa-plus me-1"></i> Add Key
-                            </button>
-                        </div>
-                    </div>
-                    <div class="col-md-4">
-                        <select id="model-selector" class="form-select">
-                            {% for model in config.providers.openrouter.models %}
-                            <option value="{{ model.id }}" {% if model.id == config.current_model %}selected{% endif %}>
-                                {{ model.name }}
-                            </option>
-                            {% endfor %}
-                        </select>
-                    </div>
-                </div>
-                
-                <div class="table-responsive">
-                    <table class="table table-striped table-hover">
-                        <thead>
-                            <tr>
-                                <th>API Key</th>
-                                <th>Status</th>
-                                <th>Last Used</th>
-                                <th>Error Count</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="api-keys-table">
-                            <tr>
-                                <td colspan="5" class="text-center">
-                                    <div class="spinner-border spinner-border-sm text-primary" role="status">
-                                        <span class="visually-hidden">Loading...</span>
-                                    </div>
-                                    Loading API keys...
-                                </td>
-                            </tr>
-                        </tbody>
-                    </table>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
-<!-- Recent Logs -->
-<div class="row mt-4">
-    <div class="col-12">
-        <div class="card">
-            <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
-                <h5 class="mb-0">
-                    <i class="fas fa-history me-2"></i> Recent Logs
-                </h5>
-                <a href="/logs" class="btn btn-sm btn-light">View All Logs</a>
-            </div>
-            <div class="card-body">
-                <div id="recent-logs" class="log-container">
-                    <div class="text-center">
-                        <div class="spinner-border text-secondary" role="status">
+                    {% else %}
+                    <div class="d-flex justify-content-center align-items-center h-100" aria-busy="true">
+                        <div class="spinner-border text-primary" role="status">
                             <span class="visually-hidden">Loading...</span>
                         </div>
                     </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+
+        <!-- Actions Card -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100 shadow">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-cogs me-2" aria-hidden="true"></i> Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="d-grid gap-3">
+                        <!-- OpenRouter Actions -->
+                        <div class="card bg-light">
+                            <div class="card-header">
+                                <h6 class="mb-0">OpenRouter</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-grid gap-2">
+                                    <button id="btn-rotate-key" class="btn btn-outline-primary" aria-label="Rotate API Key">
+                                        <i class="fas fa-sync-alt me-2" aria-hidden="true"></i> Rotate API Key
+                                    </button>
+                                    <button id="btn-test-key" class="btn btn-outline-info" aria-label="Test Current Key">
+                                        <i class="fas fa-vial me-2" aria-hidden="true"></i> Test Current Key
+                                    </button>
+                                    <button id="btn-switch-openrouter" class="btn btn-outline-dark" aria-label="Switch to OpenRouter">
+                                        <i class="fas fa-exchange-alt me-2" aria-hidden="true"></i> Switch to OpenRouter
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Fallback Actions -->
+                        <div class="card bg-light">
+                            <div class="card-header">
+                                <h6 class="mb-0">Fallback Options</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-grid gap-2">
+                                    <button id="btn-switch-ollama" class="btn btn-outline-warning" aria-label="Switch to Ollama">
+                                        <i class="fas fa-server me-2" aria-hidden="true"></i> Switch to Ollama
+                                    </button>
+                                    <button id="btn-switch-phind" class="btn btn-outline-danger" aria-label="Launch Phind">
+                                        <i class="fas fa-globe me-2" aria-hidden="true"></i> Launch Phind
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <!-- Advanced Actions -->
+                        <div class="card bg-light">
+                            <div class="card-header">
+                                <h6 class="mb-0">Advanced</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="d-grid gap-2">
+                                    <button id="btn-temp-email" class="btn btn-outline-secondary" aria-label="Create New Account">
+                                        <i class="fas fa-envelope me-2" aria-hidden="true"></i> Create New Account
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- API Key Management -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-dark text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-key me-2" aria-hidden="true"></i> API Key Management
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-8">
+                            <div class="input-group">
+                                <input type="text" id="new-api-key" class="form-control" placeholder="Enter new OpenRouter API key" aria-label="New API key">
+                                <button id="btn-add-key" class="btn btn-primary" aria-label="Add Key">
+                                    <i class="fas fa-plus me-1" aria-hidden="true"></i> Add Key
+                                </button>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <select id="model-selector" class="form-select" aria-label="Select model">
+                                {% for model in config.providers.openrouter.models %}
+                                <option value="{{ model.id }}" {% if model.id == config.current_model %}selected{% endif %}>
+                                    {{ model.name }}
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover" aria-label="API Keys">
+                            <thead>
+                                <tr>
+                                    <th scope="col">API Key</th>
+                                    <th scope="col">Status</th>
+                                    <th scope="col">Last Used</th>
+                                    <th scope="col">Error Count</th>
+                                    <th scope="col">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="api-keys-table">
+                                {% if config and config.providers and config.providers.openrouter and config.providers.openrouter.api_keys %}
+                                    {% for key in config.providers.openrouter.api_keys %}
+                                    <tr>
+                                        <td><code class="api-key-masked">{{ key.masked_key }}</code></td>
+                                        <td>
+                                            <span class="status-indicator {% if key.is_active %}status-active{% else %}status-inactive{% endif %}" aria-hidden="true"></span>
+                                            {{ 'Active' if key.is_active else 'Inactive' }}
+                                        </td>
+                                        <td>{{ key.last_used|default('Never', true) }}</td>
+                                        <td>
+                                            <span class="badge {% if key.error_count > 0 %}bg-danger{% else %}bg-success{% endif %}">
+                                                {{ key.error_count }}
+                                            </span>
+                                        </td>
+                                        <td>
+                                            <div class="btn-group" role="group">
+                                                <button class="btn btn-sm btn-outline-primary me-1 btn-activate-key" data-key="{{ key.key }}" {% if key.is_active %}disabled{% endif %} aria-label="Activate key">
+                                                    <i class="fas fa-check" aria-hidden="true"></i>
+                                                </button>
+                                                <button class="btn btn-sm btn-outline-danger btn-remove-key" data-key="{{ key.key }}" {% if key.is_active %}disabled{% endif %} aria-label="Remove key">
+                                                    <i class="fas fa-trash" aria-hidden="true"></i>
+                                                </button>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                <tr>
+                                    <td colspan="5" class="text-center" aria-busy="true">
+                                        <div class="spinner-border spinner-border-sm text-primary" role="status">
+                                            <span class="visually-hidden">Loading...</span>
+                                        </div>
+                                        Loading API keys...
+                                    </td>
+                                </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Logs -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-history me-2" aria-hidden="true"></i> Recent Logs
+                    </h5>
+                    <a href="/logs" class="btn btn-sm btn-light" aria-label="View All Logs">View All Logs</a>
+                </div>
+                <div class="card-body">
+                    <div id="recent-logs" class="log-container" aria-live="polite">
+                        {% if logs %}
+                            {% for log in logs %}
+                                <div class="log-entry {% if 'ERROR' in log %}log-error{% elif 'WARNING' in log %}log-warning{% else %}log-info{% endif %}">
+                                    {{ log }}
+                                </div>
+                            {% endfor %}
+                        {% else %}
+                        <div class="text-center" aria-busy="true">
+                            <div class="spinner-border text-secondary" role="status">
+                                <span class="visually-hidden">Loading...</span>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/api-client.js') }}"></script>
+<script src="{{ url_for('static', filename='js/status.js') }}"></script>
+<script src="{{ url_for('static', filename='js/keys.js') }}"></script>
+<script src="{{ url_for('static', filename='js/actions.js') }}"></script>
+
+<script>
+    const serverConfig = {{ config|tojson|safe if config else 'null' }};
+    
+    const refreshInterval = setInterval(() => {
+        refreshStatus();
+        refreshApiKeys();
+        refreshRecentLogs();
+    }, 30000);
+    
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!serverConfig) {
+            refreshStatus();
+            refreshApiKeys();
+            refreshRecentLogs();
+        }
+        setupEventHandlers();
+    });
+</script>
+{% endblock %}
 
 <!-- Status Update Modal -->
 <div class="modal fade" id="statusModal" tabindex="-1" aria-hidden="true">
@@ -186,25 +305,3 @@
         </div>
     </div>
 </div>
-{% endblock %}
-
-{% block extra_js %}
-<script>
-    // Auto-refresh status every 30 seconds
-    setInterval(function() {
-        refreshStatus();
-        refreshApiKeys();
-        refreshRecentLogs();
-    }, 30000);
-    
-    // Initial load
-    $(document).ready(function() {
-        refreshStatus();
-        refreshApiKeys();
-        refreshRecentLogs();
-        
-        // Set up event handlers
-        setupEventHandlers();
-    });
-</script>
-{% endblock %}

@@ -41,5 +41,10 @@ def register_dashboard_routes(app, config_manager):
         
         return render_template('logs.html', logs=logs, log_files=log_files, selected_log=selected_log, year=datetime.now().year)
     
+    @dashboard.route('/modal-test')
+    def modal_test():
+        """Render the modal test page"""
+        return render_template('modal-test.html', year=datetime.now().year)
+    
     # Register the blueprint with the app
     app.register_blueprint(dashboard)

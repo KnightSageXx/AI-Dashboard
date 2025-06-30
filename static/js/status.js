@@ -5,7 +5,12 @@
 // Status refresh function
 function refreshStatus() {
     fetch('/api/status')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             // Update the status card
             const statusHtml = `
@@ -46,31 +51,42 @@ function refreshStatus() {
         })
         .catch(error => {
             console.error('Error fetching status:', error);
-            document.getElementById('status-card').innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    Error fetching status: ${error.message}
-                </div>
-            `;
+            ErrorHandler.showError(
+                document.getElementById('status-card'),
+                `Error fetching status: ${error.message}`,
+                refreshStatus
+            );
         });
 }
 
 // Recent logs refresh function
 function refreshRecentLogs() {
+    // Show loading indicator
+    const logsContainer = document.getElementById('recent-logs');
+    if (logsContainer) {
+        ErrorHandler.showLoading(logsContainer, 'Loading logs...', true);
+    }
+    
     fetch('/api/logs?limit=10')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
+            // Check if there's an error flag in the response
+            if (data.error) {
+                throw new Error(data.logs && data.logs.length > 0 ? data.logs[0] : 'Unknown error');
+            }
+            
             const logs = data.logs || [];
             
             let logsHtml = '';
             
             if (logs.length === 0) {
-                logsHtml = `
-                    <div class="text-center p-3">
-                        <i class="fas fa-info-circle me-2"></i>
-                        No recent logs
-                    </div>
-                `;
+                ErrorHandler.showEmptyState(logsContainer, 'No recent logs');
+                return;
             } else {
                 logs.forEach(log => {
                     const logClass = log.includes('ERROR') ? 'log-error' : 
@@ -80,20 +96,22 @@ function refreshRecentLogs() {
                 });
             }
             
-            document.getElementById('recent-logs').innerHTML = logsHtml;
-            
-            // Scroll to the bottom of the logs
-            const logsContainer = document.getElementById('recent-logs');
-            logsContainer.scrollTop = logsContainer.scrollHeight;
+            if (logsContainer) {
+                logsContainer.innerHTML = logsHtml;
+                // Scroll to the bottom of the logs
+                logsContainer.scrollTop = logsContainer.scrollHeight;
+            }
         })
         .catch(error => {
             console.error('Error fetching logs:', error);
-            document.getElementById('recent-logs').innerHTML = `
-                <div class="alert alert-danger">
-                    <i class="fas fa-exclamation-triangle me-2"></i>
-                    Error fetching logs: ${error.message}
-                </div>
-            `;
+            if (logsContainer) {
+                ErrorHandler.showError(
+                    logsContainer,
+                    `Error fetching logs: ${error.message}`,
+                    refreshRecentLogs,
+                    'Retry'
+                );
+            }
         });
 }
 

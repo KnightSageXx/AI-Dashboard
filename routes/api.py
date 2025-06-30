@@ -22,37 +22,64 @@ def register_api_routes(app, key_rotator, provider_switcher, config_manager):
     @api.route('/status')
     def get_status():
         """Get the current status of the AI providers"""
-        config = config_manager.get_config()
-        
-        # Get active OpenRouter key
-        active_key = None
-        for key in config['providers']['openrouter']['api_keys']:
-            if key['is_active']:
-                active_key = key
-                break
-        
-        # Format the key for display (mask except first/last 4 chars)
-        masked_key = None
-        if active_key and active_key['key']:
-            key_str = active_key['key']
-            if len(key_str) > 8:
-                masked_key = f"{key_str[:4]}...{key_str[-4:]}"
-            else:
-                masked_key = "****"
-        
-        status = {
-            'current_provider': config['current_provider'],
-            'current_model': config['current_model'],
-            'active_key': masked_key,
-            'last_used': active_key['last_used'] if active_key else None,
-            'error_count': active_key['error_count'] if active_key else 0,
-            'total_keys': len(config['providers']['openrouter']['api_keys']),
-            'active_keys': sum(1 for k in config['providers']['openrouter']['api_keys'] if k['is_active']),
-            'auto_rotate': config['auto_rotate'],
-            'last_check': datetime.now().isoformat()
-        }
-        
-        return jsonify(status)
+        try:
+            # Ensure config exists
+            config = config_manager.get_config() or {}
+            
+            # Get active OpenRouter key
+            active_key = None
+            try:
+                if 'providers' in config and 'openrouter' in config['providers'] and 'api_keys' in config['providers']['openrouter']:
+                    for key in config['providers']['openrouter']['api_keys']:
+                        if key.get('is_active', False):
+                            active_key = key
+                            break
+            except (KeyError, TypeError, AttributeError) as key_error:
+                logger.error(f"Error accessing API keys: {str(key_error)}")
+                active_key = None
+            
+            # Format the key for display (mask except first/last 4 chars)
+            masked_key = None
+            if active_key and active_key.get('key'):
+                key_str = active_key['key']
+                if len(key_str) > 8:
+                    masked_key = f"{key_str[:4]}...{key_str[-4:]}"
+                else:
+                    masked_key = "****"
+            
+            # Safely get values with defaults
+            current_provider = config.get('current_provider', 'Unknown')
+            current_model = config.get('current_model', 'Unknown')
+            auto_rotate = config.get('auto_rotate', False)
+            
+            # Safely count keys
+            try:
+                total_keys = len(config['providers']['openrouter']['api_keys'])
+                active_keys = sum(1 for k in config['providers']['openrouter']['api_keys'] if k.get('is_active'))
+            except (KeyError, TypeError):
+                total_keys = 0
+                active_keys = 0
+            
+            status = {
+                'current_provider': current_provider,
+                'current_model': current_model,
+                'active_key': masked_key,
+                'last_used': active_key.get('last_used') if active_key else None,
+                'error_count': active_key.get('error_count', 0) if active_key else 0,
+                'total_keys': total_keys,
+                'active_keys': active_keys,
+                'auto_rotate': auto_rotate,
+                'last_check': datetime.now().isoformat()
+            }
+            
+            return jsonify(status)
+        except Exception as e:
+            logger.error(f"/api/status failed: {str(e)}", exc_info=True)
+            return jsonify({
+                'current_provider': 'Error',
+                'current_model': 'Unknown',
+                'error': str(e)
+            }), 500
     
     @api.route('/switch/<provider>', methods=['POST'])
     def switch_provider(provider):
@@ -179,20 +206,50 @@ def register_api_routes(app, key_rotator, provider_switcher, config_manager):
             
             # Ensure the log file is in the logs directory for security
             if not log_file.endswith('.log') or '/' in log_file or '\\' in log_file:
+                logger.warning(f"Invalid log file name requested: {log_file}")
                 raise APIError("Invalid log file name", 400)
             
-            log_path = os.path.join('logs', log_file)
+            # Ensure logs directory exists
+            logs_dir = 'logs'
+            if not os.path.exists(logs_dir):
+                try:
+                    os.makedirs(logs_dir)
+                    logger.info(f"Created logs directory: {logs_dir}")
+                except Exception as mkdir_error:
+                    error_msg = f"Error creating logs directory: {str(mkdir_error)}"
+                    logger.error(error_msg, exc_info=True)
+                    raise APIError(error_msg, 500)
             
+            log_path = os.path.join(logs_dir, log_file)
+            
+            # If log file doesn't exist, create an empty one
             if not os.path.exists(log_path):
-                return jsonify({'logs': []})
+                try:
+                    with open(log_path, 'w') as f:
+                        f.write(f"{datetime.now().strftime('%Y-%m-%d %H:%M:%S')} - ai_dashboard - INFO - Log file created\n")
+                    logger.info(f"Created new log file: {log_path}")
+                except Exception as create_error:
+                    error_msg = f"Error creating log file {log_path}: {str(create_error)}"
+                    logger.error(error_msg, exc_info=True)
+                    raise APIError(error_msg, 500)
             
-            with open(log_path, 'r') as f:
-                logs = f.readlines()
-                # Get the last 'limit' log entries or all if less than 'limit'
-                logs = logs[-limit:] if len(logs) > limit else logs
+            try:
+                with open(log_path, 'r') as f:
+                    logs = f.readlines()
+                    # Get the last 'limit' log entries or all if less than 'limit'
+                    logs = logs[-limit:] if len(logs) > limit else logs
+            except Exception as file_error:
+                error_msg = f"Error reading log file {log_path}: {str(file_error)}"
+                logger.error(error_msg, exc_info=True)
+                raise APIError(error_msg, 500)
             
             # Get available log files
-            log_files = [f for f in os.listdir('logs') if f.endswith('.log')]
+            try:
+                log_files = [f for f in os.listdir(logs_dir) if f.endswith('.log')]
+            except Exception as dir_error:
+                error_msg = f"Error listing log files: {str(dir_error)}"
+                logger.error(error_msg, exc_info=True)
+                log_files = [log_file] if os.path.exists(log_path) else []
             
             return jsonify({
                 'logs': logs,
@@ -200,8 +257,8 @@ def register_api_routes(app, key_rotator, provider_switcher, config_manager):
                 'current_file': log_file
             })
         except Exception as e:
-            logger.error(f"Error getting logs: {str(e)}")
-            raise APIError(f"Failed to get logs: {str(e)}", 500)
+            logger.error(f"Error getting logs: {str(e)}", exc_info=True)
+            return jsonify({'logs': [f"Error: {str(e)}"], 'error': True})
     
     # Register the blueprint with the app
     app.register_blueprint(api)

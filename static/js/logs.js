@@ -2,10 +2,23 @@
  * logs.js - Handles log viewing and filtering for the AI Dashboard
  */
 
+// Import utilities (this comment helps indicate dependency on utils.js)
+
 // Load logs from the server
 function loadLogs(logFile = 'status.log', limit = 100) {
+    // Show loading indicator
+    const logsContainer = document.getElementById('full-logs');
+    if (logsContainer) {
+        ErrorHandler.showLoading(logsContainer, 'Loading logs...', false);
+    }
+    
     fetch(`/api/logs?file=${logFile}&limit=${limit}`)
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             const logs = data.logs || [];
             const logFiles = data.log_files || [];
@@ -21,16 +34,10 @@ function loadLogs(logFile = 'status.log', limit = 100) {
             }
             
             // Update logs container
-            const logsContainer = document.getElementById('full-logs');
             if (!logsContainer) return;
             
             if (logs.length === 0) {
-                logsContainer.innerHTML = `
-                    <div class="text-center p-5">
-                        <i class="fas fa-info-circle fa-2x mb-3 text-muted"></i>
-                        <p>No logs available.</p>
-                    </div>
-                `;
+                ErrorHandler.showEmptyState(logsContainer, 'No logs available.', 'fa-info-circle');
             } else {
                 let logsHtml = '';
                 logs.forEach(log => {
@@ -44,22 +51,22 @@ function loadLogs(logFile = 'status.log', limit = 100) {
                 // Scroll to the bottom of the logs
                 logsContainer.scrollTop = logsContainer.scrollHeight;
             }
-            
-            // Apply any existing filters
-            filterLogs();
         })
         .catch(error => {
             console.error('Error loading logs:', error);
-            const logsContainer = document.getElementById('full-logs');
             if (logsContainer) {
-                logsContainer.innerHTML = `
-                    <div class="alert alert-danger">
-                        <i class="fas fa-exclamation-triangle me-2"></i>
-                        Error loading logs: ${error.message}
-                    </div>
-                `;
+                ErrorHandler.showError(
+                    logsContainer, 
+                    `Error loading logs: ${error.message}`,
+                    () => loadLogs(logFile, limit),
+                    'Retry'
+                );
             }
+            
+            // Apply any existing filters
+            filterLogs();
         });
+
 }
 
 // Filter logs based on text input and dropdown selections

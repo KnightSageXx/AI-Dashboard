@@ -12,5 +12,10 @@ python-dotenv==1.0.0
 watchdog==3.0.0
 cryptography==41.0.5
 
+# Gmail API
+google-api-python-client==2.108.0
+google-auth-httplib2==0.1.1
+google-auth-oauthlib==1.1.0
+
 # For development
 python-json-logger==2.0.7

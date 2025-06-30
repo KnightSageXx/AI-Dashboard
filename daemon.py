@@ -9,6 +9,8 @@ from services.KeyRotator import KeyRotator
 from services.ProviderSwitcher import ProviderSwitcher
 from services.DaemonMonitor import DaemonMonitor
 from utils.Logger import setup_logger
+from utils.Encryption import EncryptionManager
+from utils.Validator import APIKeyValidator
 
 # Create logs directory if it doesn't exist
 os.makedirs('logs', exist_ok=True)
@@ -23,8 +25,10 @@ def main():
         
         # Initialize components
         config_manager = ConfigManager('config.json')
-        key_rotator = KeyRotator(config_manager)
-        provider_switcher = ProviderSwitcher(config_manager)
+        encryption_manager = EncryptionManager()
+        validator = APIKeyValidator()
+        key_rotator = KeyRotator(config_manager, encryption_manager, validator)
+        provider_switcher = ProviderSwitcher(config_manager, key_rotator)
         
         # Create and start the daemon monitor
         daemon = DaemonMonitor(config_manager, key_rotator, provider_switcher)

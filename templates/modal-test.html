@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}Modal Manager Test{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5>Modal Manager Test</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6>Basic Modals</h6>
+                            <button id="btn-test-open" class="btn btn-primary me-2">Open Modal</button>
+                            <button id="btn-test-alert" class="btn btn-info me-2">Alert</button>
+                            <button id="btn-test-confirm" class="btn btn-warning me-2">Confirm</button>
+                            <button id="btn-test-prompt" class="btn btn-secondary me-2">Prompt</button>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6>Modal Types</h6>
+                            <button id="btn-test-success" class="btn btn-success me-2">Success</button>
+                            <button id="btn-test-error" class="btn btn-danger me-2">Error</button>
+                            <button id="btn-test-warning" class="btn btn-warning me-2">Warning</button>
+                            <button id="btn-test-info" class="btn btn-info me-2">Info</button>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-4">
+                        <div class="col-12">
+                            <h6>HTML Content</h6>
+                            <button id="btn-test-html" class="btn btn-primary me-2">HTML Content</button>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            <h6>Custom Buttons</h6>
+                            <button id="btn-test-custom-buttons" class="btn btn-primary me-2">Custom Buttons</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Basic open modal
+        document.getElementById('btn-test-open').addEventListener('click', function() {
+            modalManager.open({
+                title: 'Basic Modal',
+                message: 'This is a basic modal with default settings.',
+                type: 'info'
+            });
+        });
+        
+        // Alert modal
+        document.getElementById('btn-test-alert').addEventListener('click', function() {
+            modalManager.alert({
+                title: 'Alert Modal',
+                message: 'This is an alert modal with an OK button.',
+                type: 'info',
+                onClose: function() {
+                    console.log('Alert modal closed');
+                }
+            });
+        });
+        
+        // Confirm modal
+        document.getElementById('btn-test-confirm').addEventListener('click', function() {
+            modalManager.confirm({
+                title: 'Confirm Action',
+                message: 'Are you sure you want to proceed with this action?',
+                type: 'warning',
+                confirmText: 'Yes, Proceed',
+                cancelText: 'No, Cancel',
+                onConfirm: function() {
+                    console.log('Action confirmed');
+                    modalManager.alert({
+                        title: 'Success',
+                        message: 'Action confirmed successfully!',
+                        type: 'success'
+                    });
+                },
+                onCancel: function() {
+                    console.log('Action cancelled');
+                }
+            });
+        });
+        
+        // Prompt modal
+        document.getElementById('btn-test-prompt').addEventListener('click', function() {
+            modalManager.prompt({
+                title: 'Enter Information',
+                message: 'Please provide the requested information:',
+                type: 'info',
+                inputPlaceholder: 'Type here...',
+                inputValue: '',
+                submitText: 'Submit',
+                cancelText: 'Cancel',
+                onSubmit: function(value) {
+                    console.log('Submitted value:', value);
+                    modalManager.alert({
+                        title: 'Submitted',
+                        message: 'You entered: ' + value,
+                        type: 'success'
+                    });
+                },
+                onCancel: function() {
+                    console.log('Prompt cancelled');
+                }
+            });
+        });
+        
+        // Success modal
+        document.getElementById('btn-test-success').addEventListener('click', function() {
+            modalManager.open({
+                title: 'Success',
+                message: 'Operation completed successfully!',
+                type: 'success'
+            });
+        });
+        
+        // Error modal
+        document.getElementById('btn-test-error').addEventListener('click', function() {
+            modalManager.open({
+                title: 'Error',
+                message: 'An error occurred while processing your request.',
+                type: 'error'
+            });
+        });
+        
+        // Warning modal
+        document.getElementById('btn-test-warning').addEventListener('click', function() {
+            modalManager.open({
+                title: 'Warning',
+                message: 'This action may have unintended consequences.',
+                type: 'warning'
+            });
+        });
+        
+        // Info modal
+        document.getElementById('btn-test-info').addEventListener('click', function() {
+            modalManager.open({
+                title: 'Information',
+                message: 'Here is some important information you should know.',
+                type: 'info'
+            });
+        });
+        
+        // HTML content modal
+        document.getElementById('btn-test-html').addEventListener('click', function() {
+            modalManager.open({
+                title: 'HTML Content',
+                message: '<p>This modal contains <strong>HTML content</strong> with <a href="#" tabindex="0">a link</a> and <button class="btn btn-sm btn-primary">a button</button>.</p>',
+                type: 'info',
+                useHtml: true
+            });
+        });
+        
+        // Custom buttons modal
+        document.getElementById('btn-test-custom-buttons').addEventListener('click', function() {
+            modalManager.open({
+                title: 'Custom Buttons',
+                message: 'This modal has custom buttons in the footer.',
+                type: 'info',
+                buttons: [
+                    {
+                        text: 'Save Draft',
+                        type: 'secondary',
+                        handler: function() {
+                            console.log('Save draft clicked');
+                        }
+                    },
+                    {
+                        text: 'Delete',
+                        type: 'danger',
+                        handler: function() {
+                            console.log('Delete clicked');
+                            return true; // Close the modal
+                        }
+                    },
+                    {
+                        text: 'Submit',
+                        type: 'primary',
+                        handler: function() {
+                            console.log('Submit clicked');
+                            return true; // Close the modal
+                        }
+                    }
+                ]
+            });
+        });
+    });
+</script>
+{% endblock %}

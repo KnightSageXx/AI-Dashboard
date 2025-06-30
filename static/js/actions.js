@@ -9,7 +9,12 @@ function switchToOpenRouter() {
     fetch('/api/switch/openrouter', {
         method: 'POST'
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.error) {
             showStatusModal('Error', data.error);
@@ -19,6 +24,8 @@ function switchToOpenRouter() {
         }
     })
     .catch(error => {
+        console.error('Error switching to OpenRouter:', error);
+        ErrorHandler.showToast(`Failed to switch to OpenRouter: ${error.message}`, 'error');
         showStatusModal('Error', `Failed to switch to OpenRouter: ${error.message}`);
     });
 }
@@ -30,7 +37,12 @@ function switchToOllama() {
     fetch('/api/switch/ollama', {
         method: 'POST'
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.error) {
             showStatusModal('Error', data.error);
@@ -40,6 +52,8 @@ function switchToOllama() {
         }
     })
     .catch(error => {
+        console.error('Error switching to Ollama:', error);
+        ErrorHandler.showToast(`Failed to switch to Ollama: ${error.message}`, 'error');
         showStatusModal('Error', `Failed to switch to Ollama: ${error.message}`);
     });
 }
@@ -51,7 +65,12 @@ function launchPhind() {
     fetch('/api/launch/phind', {
         method: 'POST'
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.error) {
             showStatusModal('Error', data.error);
@@ -61,6 +80,8 @@ function launchPhind() {
         }
     })
     .catch(error => {
+        console.error('Error launching Phind:', error);
+        ErrorHandler.showToast(`Failed to launch Phind: ${error.message}`, 'error');
         showStatusModal('Error', `Failed to launch Phind: ${error.message}`);
     });
 }
@@ -72,7 +93,12 @@ function createTempEmail() {
     fetch('/api/temp_email', {
         method: 'POST'
     })
-    .then(response => response.json())
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.error) {
             showStatusModal('Error', data.error);
@@ -83,6 +109,8 @@ function createTempEmail() {
         }
     })
     .catch(error => {
+        console.error('Error creating temp email:', error);
+        ErrorHandler.showToast(`Failed to create temp email: ${error.message}`, 'error');
         showStatusModal('Error', `Failed to create temp email: ${error.message}`);
     });
 }
@@ -110,14 +138,36 @@ function updateModel(modelId) {
         }
     })
     .catch(error => {
+        console.error('Error updating model:', error);
+        ErrorHandler.showToast(`Failed to update model: ${error.message}`, 'error');
         showStatusModal('Error', `Failed to update model: ${error.message}`);
     });
 }
 
-// Helper function to show status modal
-function showStatusModal(title, message) {
-    const modal = new bootstrap.Modal(document.getElementById('statusModal'));
-    document.getElementById('statusModalTitle').textContent = title;
-    document.getElementById('statusModalBody').textContent = message;
-    modal.show();
+/**
+ * Show a status modal with the given title and message
+ * @param {string} title - The modal title
+ * @param {string} message - The modal message
+ * @param {Function} onClose - Optional callback when modal is closed
+ * @param {boolean} useHtml - Whether to use HTML content for the message
+ */
+function showStatusModal(title, message, onClose, useHtml = false) {
+    // Determine the modal type based on the title
+    let type = 'info';
+    if (title.toLowerCase().includes('error')) {
+        type = 'error';
+    } else if (title.toLowerCase().includes('success')) {
+        type = 'success';
+    } else if (title.toLowerCase().includes('warning')) {
+        type = 'warning';
+    }
+    
+    // Use the modalManager to show the modal
+    modalManager.open({
+        title: title,
+        message: message,
+        type: type,
+        useHtml: useHtml,
+        onClose: onClose
+    });
 }

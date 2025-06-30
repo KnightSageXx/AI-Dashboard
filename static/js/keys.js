@@ -6,12 +6,22 @@
 function refreshApiKeys() {
     // We'll use the config data from the server to populate this
     fetch('/api/status')
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
         .then(data => {
             if (data.current_provider === 'openrouter') {
                 // Make another request to get the full config with all keys
                 return fetch('/api/status?full=true')
-                    .then(response => response.json());
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! Status: ${response.status}`);
+                        }
+                        return response.json();
+                    });
             }
             return data;
         })
@@ -86,6 +96,9 @@ function refreshApiKeys() {
                 <tr>
                     <td colspan="5" class="text-center text-danger">
                         Error fetching API keys: ${error.message}
+                        <button class="btn btn-sm btn-outline-danger ms-2" onclick="refreshApiKeys()">
+                            <i class="fas fa-sync-alt"></i> Retry
+                        </button>
                     </td>
                 </tr>
             `;
@@ -129,6 +142,8 @@ function addApiKey() {
         }
     })
     .catch(error => {
+        console.error('Error adding API key:', error);
+        ErrorHandler.showToast(`Failed to add API key: ${error.message}`, 'error');
         showStatusModal('Error', `Failed to add API key: ${error.message}`);
     });
 }
@@ -156,6 +171,8 @@ function rotateApiKey() {
         }
     })
     .catch(error => {
+        console.error('Error rotating API key:', error);
+        ErrorHandler.showToast(`Failed to rotate API key: ${error.message}`, 'error');
         showStatusModal('Error', `Failed to rotate API key: ${error.message}`);
     });
 }
@@ -177,6 +194,8 @@ function testApiKey() {
         }
     })
     .catch(error => {
+        console.error('Error testing API key:', error);
+        ErrorHandler.showToast(`Failed to test API key: ${error.message}`, 'error');
         showStatusModal('Error', `Failed to test API key: ${error.message}`);
     });
 }
@@ -203,36 +222,46 @@ function activateKey(apiKey) {
         }
     })
     .catch(error => {
+        console.error('Error activating key:', error);
+        ErrorHandler.showToast(`Failed to activate key: ${error.message}`, 'error');
         showStatusModal('Error', `Failed to activate key: ${error.message}`);
     });
 }
 
 // Helper function to remove a key
 function removeKey(apiKey) {
-    if (!confirm('Are you sure you want to remove this API key?')) {
-        return;
-    }
-    
-    showStatusModal('Removing Key', 'Please wait...');
-    
-    fetch('/api/remove_key', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ key: apiKey })
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            showStatusModal('Error', data.error);
-        } else {
-            showStatusModal('Success', data.message);
-            refreshApiKeys();
-            refreshStatus(); // Update the status display
+    modalManager.confirm({
+        title: 'Confirm Removal',
+        message: 'Are you sure you want to remove this API key?',
+        type: 'warning',
+        confirmText: 'Remove',
+        confirmType: 'danger',
+        cancelText: 'Cancel',
+        onConfirm: () => {
+            showStatusModal('Removing Key', 'Please wait...');
+            
+            fetch('/api/remove_key', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ key: apiKey })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    showStatusModal('Error', data.error);
+                } else {
+                    showStatusModal('Success', data.message);
+                    refreshApiKeys();
+                    refreshStatus(); // Update the status display
+                }
+            })
+            .catch(error => {
+                console.error('Error removing key:', error);
+                ErrorHandler.showToast(`Failed to remove key: ${error.message}`, 'error');
+                showStatusModal('Error', `Failed to remove key: ${error.message}`);
+            });
         }
-    })
-    .catch(error => {
-        showStatusModal('Error', `Failed to remove key: ${error.message}`);
     });
 }
